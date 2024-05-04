@@ -1,8 +1,7 @@
 local function celestia1()
-    print("celestia1 is called") -- 调试信息
     local OldCelestia = CS.UnityEngine.GameObject.Find("/StageRoot/LoginScene(Clone)/SceneObj")
     if OldCelestia then
-        CS.MoleMole.ActorUtils.ShowMessage("Found OldCelestia") -- 调试信息
+        CS.MoleMole.ActorUtils.ShowMessage("Found OldCelestia")
         OldCelestia:SetActive(false)
         Celestia = CS.UnityEngine.Object.Instantiate(OldCelestia)
         Celestia.transform.name = "Celestia"
@@ -10,15 +9,14 @@ local function celestia1()
         OldCelestia:SetActive(true)
         CS.UnityEngine.Object.DontDestroyOnLoad(Celestia)
     else
-        CS.MoleMole.ActorUtils.ShowMessage("OldCelestia not found") -- 调试信息
+        CS.MoleMole.ActorUtils.ShowMessage("OldCelestia not found")
     end
 end
 
 local function celestia2()
-    print("celestia2 is called") -- 调试信息
     local BigWorld = CS.UnityEngine.GameObject.Find("/BigWorld(Clone)")
     if BigWorld and Celestia then
-        CS.MoleMole.ActorUtils.ShowMessage("Found BigWorld and Celestia") -- 调试信息
+        CS.MoleMole.ActorUtils.ShowMessage("Found BigWorld and Celestia")
         Celestia:SetActive(true)
         CS.UnityEngine.Object.Destroy(CS.UnityEngine.GameObject.Find("/Celestia/ModelCamera"))
 
@@ -30,7 +28,7 @@ local function celestia2()
         Celestia.transform.GetChild(1).position = cord
         Celestia.transform.GetChild(2).position = cord
     else
-        CS.MoleMole.ActorUtils.ShowMessage("BigWorld or Celestia not found") -- 调试信息
+        CS.MoleMole.ActorUtils.ShowMessage("BigWorld or Celestia not found")
     end
 end
 local function test()
