@@ -17,7 +17,6 @@ local function CreatePlane()
 		local bakaobj = CS.UnityEngine.GameObject.Find("/Baka")
 		CS.MoleMole.ActorUtils.ShowMessage(bakaobj.transform.position.y)
 	end
-	CS.MoleMole.ActorUtils.SetAvatarPos({x = 0, y = 1007, z = 0})
 end
 
 local function onError(error)
