@@ -86,24 +86,11 @@ CharcharValue_z = 1
 
 function initGmMenu()
     logDebug("initGmMenu")
-    local canvas = CS.UnityEngine.GameObject.Find("/Canvas")
     -- 开启live版本客户端的GM按钮
-    -- local btnGm = CS.UnityEngine.GameObject.Find("/Canvas/Pages/InLevelMainPage/GrpMainPage/GrpMainBtn/GrpMainToggle/GrpTopPanel/BtnGm")
-    InstantiateButtonWithParent()
-    local NEW_GM = CS.UnityEngine.GameObject.Find("/BtnGm(Clone)")
-    CS.UnityEngine.Object.DontDestroyOnLoad(NEW_GM)
-    NEW_GM:SetActive(true)
-    
-
-
-
-
-
-
-
-    -- CS.UnityEngine.Object.DontDestroyOnLoad(btnGm)
+    local btnGm = CS.UnityEngine.GameObject.Find("/Canvas/Pages/InLevelMainPage/GrpMainPage/GrpMainBtn/GrpMainToggle/GrpTopPanel/BtnGm")
+    CS.UnityEngine.Object.DontDestroyOnLoad(btnGm)
     CS.UnityEngine.Object.DontDestroyOnLoad(canvas)
-    -- btnGm:SetActive(true)
+    btnGm:SetActive(true)
     canvas:SetActive(true)
     -- 切换加速
     local accSwitch = createFuncBtn("accSwitch",
@@ -220,19 +207,19 @@ function initGmMenu()
                     Celestia.transform.position=CS.UnityEngine.Vector3(StartPos.x,1300.7352,StartPos.z)
                     Celestia:SetActive(true)
                     New_tianli:SetActive(false)
-                    New_tianli.transform.position=CS.UnityEngine.Vector3(StartPos.x, 1300, StartPos.z)---------
+                    New_tianli.transform.position=CS.UnityEngine.Vector3(StartPos.x, 1300, StartPos.z)
                     New_tianli:SetActive(true)
                     local pos_player = CS.UnityEngine.GameObject.Find("/EntityRoot/AvatarRoot")
                     pos_player:SetActive(false)
                     pos_player.transform.position=CS.UnityEngine.Vector3(StartPos.x, 1500, StartPos.z)
                     pos_player:SetActive(true)
                 else
-                    CS.MoleMole.ActorUtils.ShowMessage("not found") -- 调试信息
+                    CS.MoleMole.ActorUtils.ShowMessage("not found")
                 end
             end,
             CS.UnityEngine.Vector3(-200, 100, 0))
     -- 注册GM按钮回调
-    local button = NEW_GM:GetComponent(typeof(CS.UnityEngine.UI.Button))
+    local button = btnGm:GetComponent(typeof(CS.UnityEngine.UI.Button))
     CS.UnityEngine.Object.DontDestroyOnLoad(button)
     local function showGmMenu()
         accSwitch:SetActive(true)
@@ -242,7 +229,6 @@ function initGmMenu()
         posResetButton:SetActive(true)
         celestia1:SetActive(true)
         celestia2:SetActive(true)
-        -- SetCharacterSize.SetActive(true)
         
     end
     local function hideGmMenu()
@@ -253,7 +239,6 @@ function initGmMenu()
         posResetButton:SetActive(false)
         celestia1:SetActive(false)
         celestia2:SetActive(false)
-        -- SetCharacterSize.SetActive(false)
     end
     button.onClick:AddListener(
             function()
