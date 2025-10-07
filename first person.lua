@@ -1,4 +1,4 @@
--- FPV: First-Person View 
+-- FPV: First-Person View Toolkit (xLua) avatar
 local FPV = {}
 
 -------------------------------------------------------------
@@ -6,19 +6,19 @@ local FPV = {}
 -------------------------------------------------------------
 FPV.cfg = {
     log_path      = "C:/Windy/log.txt",
-    use_entity    = "EntityRoot",              
+    use_entity    = "EntityRoot",
     old_cam_name  = "MainCamera(Clone)",
     new_cam_name  = "MainCamera(Clone)(Clone)",
     head_path     = table.concat({
         "Bip001","Bip001 Pelvis","Bip001 Spine","Bip001 Spine1",
         "Bip001 Spine2","Bip001 Neck","Bip001 Head"
     }, "/"),
-    local_offset  = CS.UnityEngine.Vector3(-0.045,0.1,0), -- localPosition
+    local_offset  = CS.UnityEngine.Vector3(-0.045,0.1,0),
     fov           = 68,
     near_clip     = 0.02,
     disable_cinemachine = true,                -- CinemachineBrain
-    set_main_camera     = true,                -- MainCamere(Clone)
-    log_verbose   = true,                      -- DetailLog
+    set_main_camera     = true,                
+    log_verbose   = true,                      -- detail log
 }
 
 -------------------------------------------------------------
@@ -34,7 +34,7 @@ FPV.state = {
 }
 
 -------------------------------------------------------------
--- Log
+-- log
 -------------------------------------------------------------
 function FPV:_log_raw(msg)
     local ok,f = pcall(io.open, self.cfg.log_path, "a")
@@ -114,10 +114,10 @@ function FPV:_safe_look_rotation(forward, up)
 end
 
 -------------------------------------------------------------
--- 定位根节点与相机
+-- Find EntityRoot MainCamera(Clone)
 -------------------------------------------------------------
 function FPV:locate_roots()
-    self:_log_raw("S1: 定位 EntityRoot & OldCam")
+    self:_log_raw("S1: Fine EntityRoot & OldCam")
     local er = CS.UnityEngine.GameObject.Find(self.cfg.use_entity) or CS.UnityEngine.GameObject.Find("EntiyRoot")
     if not er then self:_log_raw("S1 FAIL: 未找到 EntityRoot/EntiyRoot"); return false end
     self.state.entity_root = er
@@ -146,7 +146,7 @@ function FPV:prepare_new_camera()
 end
 
 -------------------------------------------------------------
--- 解析 <01>/<02> 与 Head
+-- 解析 <01>/<02> and Head
 -------------------------------------------------------------
 function FPV:resolve_avatar_nodes()
     self:_log_raw("S3: 解析 <01>/<02>")
@@ -249,20 +249,20 @@ function FPV:make_main_camera()
 end
 
 -------------------------------------------------------------
--- -- 清理
--- -------------------------------------------------------------
--- function FPV:teardown()
---     if self.state and self.state.new_cam then
---         self:_log_raw("Teardown: 还原旧相机标签/AudioListener 并删除新相机")
---         local oldCam = self.state.old_cam
---         if oldCam then
---             oldCam.tag = "MainCamera"
---             local alOld = oldCam:GetComponent(typeof(CS.UnityEngine.AudioListener))
---             if alOld then alOld.enabled = true end
---         end
---         CS.UnityEngine.Object.Destroy(self.state.new_cam)
---     end
--- end
+-- 回滚/清理
+-------------------------------------------------------------
+function FPV:teardown()
+    if self.state and self.state.new_cam then
+        self:_log_raw("Teardown: 还原旧相机标签/AudioListener 并删除新相机")
+        local oldCam = self.state.old_cam
+        if oldCam then
+            oldCam.tag = "MainCamera"
+            local alOld = oldCam:GetComponent(typeof(CS.UnityEngine.AudioListener))
+            if alOld then alOld.enabled = true end
+        end
+        CS.UnityEngine.Object.Destroy(self.state.new_cam)
+    end
+end
 
 -------------------------------------------------------------
 -------------------------------------------------------------
@@ -281,32 +281,155 @@ function FPV.simple_start(opts)
     return true
 end
 
--- -- 关闭（回滚）
--- function FPV.simple_stop()
---     FPV:teardown()
---     FPV:_log_raw("==== [STOP] FPV.simple_stop ====")
--- end
+function FPV.simple_stop()
+    FPV:teardown()
+    FPV:_log_raw("==== [STOP] FPV.simple_stop ====")
+end
 
--------------------------------------------------------------
--------------------------------------------------------------
-local function _ensure_log_dir(path)
-    local dir = path:match("^(.*)/[^/]+$") or path:match("^(.*)\\[^\\]+$")
-    if dir and CS.System and CS.System.IO and CS.System.IO.Directory then
-        CS.System.IO.Directory.CreateDirectory(dir)
+----------------------------------------------------------------
+-- FPV Alt+V 双态控制器
+-- 状态1：创建/挂接 MainCamera(Clone)(Clone)，并持续禁用 MainCamera(Clone).Camera.enabled=false
+-- 状态2：销毁克隆相机，启用 MainCamera(Clone).Camera.enabled=true
+----------------------------------------------------------------
+
+-- 当前状态：0=关闭（默认主相机），1=开启（FPV）
+local _FPV_STATE = 0
+
+local function _get_old_cam_go()
+    if FPV and FPV.state and FPV.state.old_cam then
+        return FPV.state.old_cam
+    end
+    local er = CS.UnityEngine.GameObject.Find(FPV.cfg.use_entity) or CS.UnityEngine.GameObject.Find("EntiyRoot")
+    local old = nil
+    if er ~= nil then
+        local t = er.transform:Find(FPV.cfg.old_cam_name)
+        old = t and t.gameObject or nil
+    end
+    if old == nil then
+        old = CS.UnityEngine.GameObject.Find(FPV.cfg.old_cam_name)
+    end
+    return old
+end
+
+-- Get Active <01>/<02>（用于切角后重绑定）
+local function _resolve_current_avatar02()
+    local er = FPV.state.entity_root or (CS.UnityEngine.GameObject.Find(FPV.cfg.use_entity) or CS.UnityEngine.GameObject.Find("EntiyRoot"))
+    if er == nil then return nil end
+    if FPV.state.entity_root == nil then FPV.state.entity_root = er end
+
+    local avatarRoot = FPV:_find_child_by_path(er, "AvatarRoot")
+    if not avatarRoot then return nil end
+
+    local tf01 = FPV:_get_unique_active_child_tf(avatarRoot.transform)
+    if not tf01 then tf01 = FPV:_pick_active_clone_child_tf(avatarRoot.transform) end
+    if not tf01 then return nil end
+
+    local go01 = tf01.gameObject
+    local offsetDummy = FPV:_find_child_by_path(go01, "OffsetDummy")
+    if not offsetDummy then return nil end
+
+    local baseName = FPV:_strip_clone_suffix(go01.name)
+    local go02 = (baseName and FPV:_find_child_by_path(offsetDummy, baseName)) or nil
+    if not go02 then
+        local od_tf = offsetDummy.transform
+        for i=0, od_tf.childCount-1 do
+            local c = od_tf:GetChild(i)
+            if go02 ~= nil then go02 = nil; break end
+            go02 = c.gameObject
+        end
+    end
+    return go02
+end
+
+-- 状态1时：若切换角色，则把MainCamera(Clone)(Clone)重新挂到新 Head 上；同时保证MainCamera(Clone)(Clone)启用
+local function _rebind_if_avatar_switched()
+    local new_avatar02 = _resolve_current_avatar02()
+    if new_avatar02 == nil then return end
+    if FPV.state.avatar02 ~= new_avatar02 then
+        FPV.state.avatar02 = new_avatar02
+        local headGO = FPV:_find_child_by_path(new_avatar02, FPV.cfg.head_path)
+        if headGO ~= nil then
+            FPV.state.head_tf = headGO.transform
+            if FPV.state.new_cam == nil then
+                FPV:prepare_new_camera()
+            end
+            local camGO = FPV.state.new_cam
+            camGO.transform:SetParent(FPV.state.head_tf, false)
+            camGO.transform.localPosition = FPV.cfg.local_offset
+            local fwd = new_avatar02.transform.forward
+            local desiredRot = FPV:_safe_look_rotation(fwd, CS.UnityEngine.Vector3.up)
+            camGO.transform.rotation = desiredRot
+            local camComp = camGO:GetComponent(typeof(CS.UnityEngine.Camera))
+            if camComp ~= nil then camComp.enabled = true end
+        end
     end
 end
 
-if not FPV.state._auto_started then
-    FPV.state._auto_started = true
-    _ensure_log_dir(FPV.cfg.log_path)
-    local ok, err = pcall(function()
-        FPV:_log_raw("==== [AUTO] FPV module loaded, autostart begin ====")
-        FPV.simple_start()
-        FPV:_log_raw("==== [AUTO] FPV autostart done ====")
-    end)
-    if not ok then
-        FPV:_log_raw("❌ [AUTO] FPV autostart failed: "..tostring(err))
+local function _enforce_old_cam_disabled()
+    local old = _get_old_cam_go()
+    if old == nil then return end
+    local cam = old:GetComponent(typeof(CS.UnityEngine.Camera))
+    if cam ~= nil and cam.enabled then
+        cam.enabled = false
     end
 end
+
+local function _activate_fpv()
+    if _FPV_STATE == 1 then return end
+    FPV.simple_start()
+    local old = _get_old_cam_go()
+    if old ~= nil then
+        local cam = old:GetComponent(typeof(CS.UnityEngine.Camera))
+        if cam ~= nil then cam.enabled = false end
+    end
+    if FPV.state.new_cam ~= nil then
+        local camComp = FPV.state.new_cam:GetComponent(typeof(CS.UnityEngine.Camera))
+        if camComp ~= nil then camComp.enabled = true end
+    end
+    _FPV_STATE = 1
+end
+
+local function _deactivate_fpv()
+    if _FPV_STATE == 0 then return end
+    if FPV and FPV.state and FPV.state.new_cam then
+        CS.UnityEngine.Object.Destroy(FPV.state.new_cam)
+        FPV.state.new_cam = nil
+    end
+    local old = _get_old_cam_go()
+    if old ~= nil then
+        local cam = old:GetComponent(typeof(CS.UnityEngine.Camera))
+        if cam ~= nil then cam.enabled = true end
+        old:SetActive(true)
+    end
+    _FPV_STATE = 0
+end
+
+-- listen Alt+V；状态1下处理切角重绑 + 持续禁用旧相机
+local function _tick_once()
+    if CS.UnityEngine.Input.GetKey(CS.UnityEngine.KeyCode.LeftAlt)
+        or CS.UnityEngine.Input.GetKey(CS.UnityEngine.KeyCode.RightAlt) then
+        if CS.UnityEngine.Input.GetKeyDown(CS.UnityEngine.KeyCode.V) then
+            if _FPV_STATE == 0 then
+                _activate_fpv()
+            else
+                _deactivate_fpv()
+            end
+        end
+    end
+    if _FPV_STATE == 1 then
+        _rebind_if_avatar_switched()
+        _enforce_old_cam_disabled()
+    end
+end
+local function _start_loop()
+    local mgr = CS.MoleMole.LuaManager()
+    local function loop_once()
+        _tick_once()
+        mgr:YieldCallback(CS.UnityEngine.WaitForSeconds(0), loop_once, true)
+    end
+    mgr:YieldCallback(CS.UnityEngine.WaitForSeconds(0), loop_once, true)
+end
+
+_start_loop()
 
 return FPV
