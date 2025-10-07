@@ -1,4 +1,5 @@
 -- FPV_Monster.lua怪物第一人称Monster
+--未绑定按键，且路径写死
 local FPV = {}
 
 FPV.cfg = {
