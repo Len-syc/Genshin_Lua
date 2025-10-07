@@ -18,10 +18,3 @@ local function CreatePlane()
 		CS.MoleMole.ActorUtils.ShowMessage(bakaobj.transform.position.y)
 	end
 end
-
-local function onError(error)
-    CS.UnityEngine.GameObject.Find("/BetaWatermarkCanvas(Clone)/Panel/TxtUID"):GetComponent("Text").text = tostring(error)
-	CS.MoleMole.ActorUtils.ShowMessage(tostring(error))
-end
-
-xpcall(CreatePlane, onError)
