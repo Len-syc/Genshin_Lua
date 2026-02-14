@@ -139,7 +139,7 @@ function FPV:attach_to_head()
     cam.transform.rotation =
         self:_safe_look_rotation(bodyForward, CS.UnityEngine.Vector3.up)
 
-    -- ⭐ 最终姿态后记录（防180翻转）
+  
     self.state.base_local_rot = cam.transform.localRotation
     self.state.pitch = 0
 end
